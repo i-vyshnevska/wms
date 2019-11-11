@@ -11,6 +11,8 @@
 # .travis.yml, use:
 # sale-workflow https://github.com/OCA/sale-workflow
 
+wms https://github.com/grindtildeath/wms 12.0_add_stock_storage_type
+
 #
 # To provide both the URL and a branch, use:
 # sale-workflow https://github.com/OCA/sale-workflow branchname
