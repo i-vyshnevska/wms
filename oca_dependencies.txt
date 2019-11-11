@@ -36,3 +36,5 @@ stock-logistics-warehouse https://github.com/guewen/stock-logistics-warehouse wm
 
 
 
+wms https://github.com/grindtildeath/wms 12.0_add_stock_storage_type
+wms https://github.com/grindtildeath/wms 12.0_add_stock_putaway_storage_type
