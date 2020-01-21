@@ -52,7 +52,7 @@
                     barcode_trigger="save"
                     attrs="{'invisible': [('current_step', 'in', ('select_product', 'done'))]}"/>
             <button name="action_reception_screen_close" type="object"
-              string="" class="btn-secondary" icon="fa-sign-out"
+              string="" class="btn-secondary" icon="fa-sign-out-alt"
               aria-label="Exit" title="Exit"/>
           </div>
         </div>

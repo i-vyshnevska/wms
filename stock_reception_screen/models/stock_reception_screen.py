@@ -177,7 +177,7 @@ class StockReceptionScreen(models.Model):
         for wiz in self:
             move = wiz.current_move_id
             wiz.current_move_location_dest_id = move.location_dest_id
-            location = move.location_dest_id.get_putaway_strategy(move.product_id)
+            location = move.location_dest_id._get_putaway_strategy(move.product_id)
             if location:
                 wiz.current_move_location_dest_id = location
 
@@ -236,7 +236,7 @@ class StockReceptionScreen(models.Model):
         """
         self.ensure_one()
         picking_url = (
-            "/web/#menu_id={}&action={}&view_type=form"
+            "/web/#menu_id={}&action={}"
             "&id={}&model={}&active_id={}".format(
                 self.env.ref("stock.menu_stock_root").id,
                 self.env.ref("stock.action_picking_tree_ready").id,
