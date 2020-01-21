@@ -33,7 +33,7 @@ class TestReceptionScreen(SavepointCase):
                 "partner_id": cls.env.ref("base.res_partner_1").id,
                 "location_id": cls.location_src.id,
                 "location_dest_id": cls.location_dest.id,
-                "picking_type_id": cls.env.ref("stock.chi_picking_type_in").id,
+                "picking_type_id": cls.env.ref("stock.picking_type_in").id,
                 "move_lines": [
                     (
                         0,

@@ -36,7 +36,7 @@ class StockPicking(models.Model):
             "views": [[self.env.ref(screen_xmlid).id, "form"]],
             "target": "fullscreen",
             "flags": {
-                "headless": True,
+                "withControlPanel": False,
                 "form_view_initial_mode": "edit",
                 "no_breadcrumbs": True,
             },
