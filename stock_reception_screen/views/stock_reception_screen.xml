@@ -101,7 +101,7 @@
                     style="width: 15em;"
                     attrs="{'readonly': [('current_step', '!=', 'set_quantity')]}"/>
                   <field name="current_move_line_uom_id" options="{'no_open': True}"/>
-                  <button name="write" type="object"
+                  <button name="action_check_quantity" type="object"
                     string="Check" class="btn-primary"
                     attrs="{'invisible': [('current_step', '!=', 'set_quantity')]}"
                     style="padding: 0.4em;"/>
