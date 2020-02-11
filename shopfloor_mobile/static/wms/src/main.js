@@ -11,6 +11,7 @@ const ScanAnything = { template: '<scan-anything></scan-anything>' }
 const ScenarioTemplate = {
    single_pack_putaway: {template: "<single-pack-putaway></single-pack-putaway>"},
    single_pack_transfer: {template: "<single-pack-transfer></single-pack-transfer>"},
+   cluster_picking: {template: "<cluster-picking></cluster-picking>"},
 }
 
 var AppConfig = new Config()
