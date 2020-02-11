@@ -22,7 +22,7 @@ export var ScenarioBaseMixin = {
         let params = new URLSearchParams(window.location.hash.split('?')[1])
         let odoo_params = {
             "process_id": params.get('process_id'),
-            "process_menu_id": params.get('id'),
+            "process_menu_id": params.get('menu_id'),
             "usage": this.usage,
         }
         if (this.$root.demo_mode)
