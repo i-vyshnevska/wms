@@ -1,6 +1,7 @@
 # Copyright 2019 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
 from odoo import _, api, fields, models
+from odoo.addons.base_m2m_custom_field.fields import Many2manyCustom
 from odoo.exceptions import ValidationError
 
 
@@ -24,7 +25,7 @@ class StockLocationStorageType(models.Model):
         readonly=True,
     )
 
-    package_storage_type_ids = fields.Many2manyCustom(
+    package_storage_type_ids = Many2manyCustom(
         "stock.package.storage.type",
         "stock_location_package_storage_type_rel",
         "location_storage_type_id",
