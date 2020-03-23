@@ -75,21 +75,46 @@ class StockMove(models.Model):
         return None
 
     def _previous_promised_quantity_domain(self):
-        domain = [
-            ("need_release", "=", True),
+        """Lookup for product promised qty in the same warehouse.
+
+        Moves to consider are either already released or still be to released
+        but not done yet. Each of them should fit the reservation horizon.
+        """
+        base_domain = [
             ("product_id", "=", self.product_id.id),
-            ("date_priority", "<", self.date_priority),
             ("warehouse_id", "=", self.warehouse_id.id),
         ]
         horizon_date = self._promise_reservation_horizon_date()
         if horizon_date:
             # exclude moves planned beyond the horizon
-            domain.append(("date_expected", "<", horizon_date))
-        return domain
+            base_domain.append(("date_expected", "<=", horizon_date))
+
+        # either the move has to be released
+        # and priority is higher than the current one
+        domain_not_released = [
+            ("need_release", "=", True),
+            ("date_priority", "<", self.date_priority),
+        ]
+        # or it has been released already
+        # and the picking is printed
+        # and is not canceled or done
+        domain_released = [
+            ("need_release", "=", False),
+            ("picking_id.printed", "=", True),
+            (
+                "state",
+                "in",
+                ("waiting", "confirmed", "partially_available", "assigned"),
+            ),
+        ]
+        return expression.AND(
+            [base_domain, expression.OR([domain_not_released, domain_released])]
+        )
 
     def _previous_promised_qty(self):
         previous_moves = self.search(
             expression.AND(
+                # TODO: `!=` is suboptimal, consider filter out on recordset
                 [self._previous_promised_quantity_domain(), [("id", "!=", self.id)]]
             ),
         )
