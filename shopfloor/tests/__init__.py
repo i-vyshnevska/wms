@@ -25,3 +25,4 @@ from . import test_checkout_change_packaging
 from . import test_checkout_remove_package
 from . import test_checkout_done
 from . import test_delivery_base
+from . import test_delivery_scan_deliver
