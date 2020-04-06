@@ -1,9 +1,12 @@
 # Copyright 2019 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
+import logging
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.osv.expression import AND, OR
 
+logger = logging.getLogger(__name__)
 
 
 class StockLocation(models.Model):
@@ -97,6 +100,11 @@ class StockLocation(models.Model):
         package_storage_type = False
         if quant:
             package_storage_type = quant.package_id.package_storage_type_id
+            logger.debug(
+                "Computing putaway for pack %s (%s)" % (
+                    quant.package_id.name, quant.package_id
+                )
+            )
         if not package_storage_type:
             return putaway_location
         dest_location = putaway_location or self
@@ -114,13 +122,28 @@ class StockLocation(models.Model):
                     package_storage_type, quant, product
                 )
             ):
+                logger.debug(
+                    "No putaway strategy defined on location %s and package "
+                    "storage type %s allowed." % (
+                        pref_loc.complete_name, package_storage_type.name
+                    )
+                )
                 return pref_loc
             storage_locations = pref_loc.get_storage_locations(products=product)
+            logger.debug("Storage locations selected: %s" % storage_locations)
             allowed_location = storage_locations.select_first_allowed_location(
                 package_storage_type, quant, product
             )
             if allowed_location:
+                logger.debug(
+                    "Applied putaway strategy to location %s"
+                    % allowed_location.complete_name
+                )
                 return allowed_location
+        logger.debug(
+            "Could not find a valid putaway location, fallback to %s"
+            % allowed_location.complete_name
+        )
         return putaway_location
 
     def get_storage_locations(self, products=None):
@@ -152,7 +175,8 @@ class StockLocation(models.Model):
         return self.browse(allowed_ids)
 
     def _get_ordered_children_locations(self):
-        return self.children_ids
+        # Call sorted() to ensure the _order is respected
+        return self.children_ids.sorted()
 
     def _package_storage_type_allowed(self, package_storage_type, quants, products):
         self.ensure_one()
