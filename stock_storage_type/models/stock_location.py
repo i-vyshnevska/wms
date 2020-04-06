@@ -142,7 +142,7 @@ class StockLocation(models.Model):
                 return allowed_location
         logger.debug(
             "Could not find a valid putaway location, fallback to %s"
-            % allowed_location.complete_name
+            % putaway_location.complete_name
         )
         return putaway_location
 
