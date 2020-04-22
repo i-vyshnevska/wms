@@ -39,9 +39,7 @@ class StockLocation(models.Model):
         return super().get_storage_locations(products)
 
     def _get_abc_locations(self, products):
-        return self.children_ids._sort_abc_locations(
-            first(products).abc_storage
-        )
+        return self.children_ids._sort_abc_locations(first(products).abc_storage)
 
     def _sort_abc_locations(self, product_abc):
         locations = self
