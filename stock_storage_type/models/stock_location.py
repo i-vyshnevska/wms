@@ -243,7 +243,7 @@ class StockLocation(models.Model):
     def _existing_planned_moves(self, products=None, lot=None):
         base_domain = [
             ("location_dest_id", "child_of", self.id),
-            ("move_id.state", "not in", ("draft", "cancel", "done")),
+            ("state", "not in", ("draft", "cancel", "done")),
         ]
         domain = self._prepare_existing_domain(base_domain, products=products, lot=lot)
         return self.env["stock.move.line"].search(domain, limit=1)
