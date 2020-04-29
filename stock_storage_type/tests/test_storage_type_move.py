@@ -11,6 +11,82 @@ class TestStorageTypeMove(TestStorageTypeCommon):
         super().setUpClass()
         cls.areas.write({"pack_putaway_strategy": "ordered_locations"})
 
+    @classmethod
+    def _update_qty_in_location(
+        cls, location, product, quantity, package=None, lot=None
+    ):
+        quants = cls.env["stock.quant"]._gather(
+            product, location, lot_id=lot, package_id=package, strict=True
+        )
+        # this method adds the quantity to the current quantity, so remove it
+        quantity -= sum(quants.mapped("quantity"))
+        cls.env["stock.quant"]._update_available_quantity(
+            product, location, quantity, package_id=package, lot_id=lot
+        )
+
+    @classmethod
+    def _create_single_move(cls, product):
+        picking_type = cls.warehouse.int_type_id
+        move_vals = {
+            "name": product.name,
+            "picking_type_id": picking_type.id,
+            "product_id": product.id,
+            "product_uom_qty": 2.0,
+            "product_uom": product.uom_id.id,
+            "location_id": cls.input_location.id,
+            "location_dest_id": picking_type.default_location_dest_id.id,
+            "state": "confirmed",
+            "procure_method": "make_to_stock",
+        }
+        return cls.env["stock.move"].create(move_vals)
+
+    def _test_confirmed_move(self, product=None):
+        confirmed_move = self._create_single_move(product or self.product)
+        confirmed_move.location_dest_id = self.pallets_bin_1_location.id
+        move_to_assign = self._create_single_move(self.product)
+        (confirmed_move | move_to_assign)._assign_picking()
+        package = self.env["stock.quant.package"].create(
+            {"product_packaging_id": self.product_pallet_product_packaging.id}
+        )
+        self._update_qty_in_location(
+            move_to_assign.location_id,
+            move_to_assign.product_id,
+            move_to_assign.product_qty,
+            package=package,
+        )
+        move_to_assign._action_assign()
+        return move_to_assign
+
+    def test_not_only_empty_confirmed_move(self):
+        self.pallets_location_storage_type.write({"only_empty": False})
+        move = self._test_confirmed_move()
+        self.assertEqual(
+            move.move_line_ids.location_dest_id, self.pallets_bin_1_location
+        )
+
+    def test_only_empty_confirmed_move(self):
+        self.pallets_location_storage_type.write({"only_empty": True})
+        move = self._test_confirmed_move()
+        self.assertNotEqual(
+            move.move_line_ids.location_dest_id, self.pallets_bin_1_location
+        )
+
+    def test_do_not_mix_products_confirmed_move(self):
+        self.pallets_location_storage_type.write(
+            {"only_empty": False, "do_not_mix_products": True}
+        )
+        move = self._test_confirmed_move()
+        self.assertEqual(
+            move.move_line_ids.location_dest_id, self.pallets_bin_1_location
+        )
+        move_other_product = self._test_confirmed_move(
+            self.env.ref("product.product_product_10")
+        )
+        self.assertNotEqual(
+            move_other_product.move_line_ids.location_dest_id,
+            self.pallets_bin_1_location,
+        )
+
     def test_package_level_location_dest_domain_only_empty(self):
         # Set pallets location type as only empty
         self.pallets_location_storage_type.write({"only_empty": True})
