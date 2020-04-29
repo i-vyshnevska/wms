@@ -92,18 +92,15 @@ class StockLocation(models.Model):
     def _get_putaway_strategy(self, product):
         putaway_location = super()._get_putaway_strategy(product)
         quant = self.env.context.get("storage_quant")
-        return self._get_pack_putaway_strategy(
-            putaway_location, quant, product
-        )
+        return self._get_pack_putaway_strategy(putaway_location, quant, product)
 
     def _get_pack_putaway_strategy(self, putaway_location, quant, product):
         package_storage_type = False
         if quant:
             package_storage_type = quant.package_id.package_storage_type_id
             logger.debug(
-                "Computing putaway for pack %s (%s)" % (
-                    quant.package_id.name, quant.package_id
-                )
+                "Computing putaway for pack %s (%s)"
+                % (quant.package_id.name, quant.package_id)
             )
         if not package_storage_type:
             return putaway_location
@@ -124,9 +121,8 @@ class StockLocation(models.Model):
             ):
                 logger.debug(
                     "No putaway strategy defined on location %s and package "
-                    "storage type %s allowed." % (
-                        pref_loc.complete_name, package_storage_type.name
-                    )
+                    "storage type %s allowed."
+                    % (pref_loc.complete_name, package_storage_type.name)
                 )
                 return pref_loc
             storage_locations = pref_loc.get_storage_locations(products=product)
@@ -180,7 +176,8 @@ class StockLocation(models.Model):
 
     def _package_storage_type_allowed(self, package_storage_type, quants, products):
         self.ensure_one()
-        matching_location_storage_types = self.allowed_location_storage_type_ids.filtered(
+        allowed_loc_storage_types = self.allowed_location_storage_type_ids
+        matching_location_storage_types = allowed_loc_storage_types.filtered(
             lambda slst: package_storage_type in slst.package_storage_type_ids
         )
         allowed_location_storage_types = self.filter_restrictions(
@@ -205,7 +202,7 @@ class StockLocation(models.Model):
                 return location_storage_type
         elif location_storage_type.do_not_mix_products:
             if location_storage_type.do_not_mix_lots:
-                lot = quants.mapped('lot_id')
+                lot = quants.mapped("lot_id")
                 if len(lot) > 1:
                     return False
                 if not self._existing_quants(
