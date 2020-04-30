@@ -198,7 +198,11 @@ class StockLocation(models.Model):
 
     def _filter_properties(self, location_storage_type, quants, products):
         if location_storage_type.only_empty:
-            if not self._existing_quants() and not self._existing_planned_moves():
+            if (
+                not self._existing_quants()
+                and not self._existing_planned_move_lines()
+                and not self._existing_planned_moves()
+            ):
                 return location_storage_type
         elif location_storage_type.do_not_mix_products:
             if location_storage_type.do_not_mix_lots:
@@ -207,12 +211,14 @@ class StockLocation(models.Model):
                     return False
                 if not self._existing_quants(
                     products=products, lot=lot
-                ) and not self._existing_planned_moves(products=products, lot=lot):
+                ) and not self._existing_planned_move_lines(products=products, lot=lot):
                     return location_storage_type
             else:
-                if not self._existing_quants(
-                    products=products
-                ) and not self._existing_planned_moves(products=products):
+                if (
+                    not self._existing_quants(products=products)
+                    and not self._existing_planned_move_lines(products=products)
+                    and not self._existing_planned_moves(products=products)
+                ):
                     return location_storage_type
         else:
             return location_storage_type
@@ -240,13 +246,26 @@ class StockLocation(models.Model):
         domain = self._prepare_existing_domain(base_domain, products=products, lot=lot)
         return self.env["stock.quant"].search(domain, limit=1)
 
-    def _existing_planned_moves(self, products=None, lot=None):
+    def _existing_planned_move_lines(self, products=None, lot=None):
         base_domain = [
             ("location_dest_id", "child_of", self.id),
-            ("move_id.state", "not in", ("draft", "cancel", "done")),
+            ("state", "in", ("waiting", "partially_available", "assigned")),
         ]
         domain = self._prepare_existing_domain(base_domain, products=products, lot=lot)
         return self.env["stock.move.line"].search(domain, limit=1)
+
+    def _existing_planned_moves(self, products=None):
+        if self.child_ids:
+            # If a location is a leaf, it's a "bin", we know that the move line will
+            # be in this exact location. If it has sub-locations, we can't be sure
+            # where it will go and we don't want to restrict based on this.
+            return self.env["stock.move"].browse()
+        base_domain = [
+            ("location_dest_id", "=", self.id),
+            ("state", "in", ("waiting", "confirmed")),
+        ]
+        domain = self._prepare_existing_domain(base_domain, products=products)
+        return self.env["stock.move"].search(domain, limit=1)
 
     def _prepare_existing_domain(self, base_domain, products=None, lot=None):
         domain = base_domain
