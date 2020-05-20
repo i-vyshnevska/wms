@@ -1,4 +1,4 @@
-# Copyright 2019 Camptocamp SA
+# Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
 from odoo import fields
@@ -17,6 +17,7 @@ class TestReceptionScreen(SavepointCase):
             "stock_storage_type.package_storage_type_pallets"
         )
         cls.product = cls.env.ref("product.product_delivery_01")
+        cls.product.tracking = "lot"
         cls.product_packaging = cls.env["product.packaging"].create(
             {
                 "name": "PKG TEST",
@@ -55,9 +56,17 @@ class TestReceptionScreen(SavepointCase):
         cls.screen = cls.picking.reception_screen_id
 
     def test_reception_screen(self):
+        # Select the product to receive
         self.assertEqual(self.screen.current_step, "select_product")
         move = fields.first(self.screen.picking_filtered_move_lines)
         move.action_select_product()
+        # Create the lot
+        self.assertEqual(self.screen.current_step, "set_lot_number")
+        self.screen.on_barcode_scanned_set_lot_number("LOT-TEST-1")
+        # Set the expiry date on the lot
+        self.assertEqual(self.screen.current_step, "set_expiry_date")
+        self.screen.current_move_line_lot_life_date = fields.Datetime.today()
+        self.screen.button_save_step()
         self.assertEqual(self.screen.current_step, "set_quantity")
         # Receive 4/10 qties (corresponding to the product packaging qty)
         self.screen.current_move_line_qty_done = 4
@@ -101,6 +110,11 @@ class TestReceptionScreen(SavepointCase):
             )
         )
         move.action_select_product()
+        self.assertEqual(self.screen.current_step, "set_lot_number")
+        self.screen.on_barcode_scanned_set_lot_number("LOT-TEST-2")
+        self.assertEqual(self.screen.current_step, "set_expiry_date")
+        self.screen.current_move_line_lot_life_date = fields.Datetime.today()
+        self.screen.button_save_step()
         self.assertEqual(self.screen.current_step, "set_quantity")
         self.screen.current_move_line_qty_done = 6
         self.assertEqual(self.screen.current_move_line_qty_status, "eq")

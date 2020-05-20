@@ -1,4 +1,4 @@
-# Copyright 2019 Camptocamp SA
+# Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
 from odoo import _, api, fields, models
@@ -319,7 +319,13 @@ class StockReceptionScreen(models.Model):
         """Set the lot number on a move line."""
         # First, check if the lot already exists
         lot_model = self.env["stock.production.lot"]
-        lot = lot_model.search([("name", "=", barcode)])
+        lot = lot_model.search(
+            [
+                ("name", "=", barcode),
+                ("product_id", "=", self.current_move_id.product_id.id),
+                ("company_id", "=", self.env.user.company_id.id),
+            ]
+        )
         if lot:
             self.env.user.notify_info(
                 message="", title=_("Reuse the existing lot {}.").format(barcode)
@@ -328,6 +334,7 @@ class StockReceptionScreen(models.Model):
             lot_vals = {
                 "name": barcode,
                 "product_id": self.current_move_id.product_id.id,
+                "company_id": self.env.user.company_id.id,
             }
             lot = lot_model.create(lot_vals)
         # Check for an existing move line without lot otherwise create one
