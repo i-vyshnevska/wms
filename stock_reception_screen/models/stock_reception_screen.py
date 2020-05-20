@@ -1,7 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
-from odoo import _, api, fields, models
+from odoo import _, api, exceptions, fields, models
 
 
 class StockReceptionScreen(models.Model):
@@ -259,6 +259,9 @@ class StockReceptionScreen(models.Model):
 
     def next_step(self):
         """Evaluate the next step for the operator."""
+        if self.current_move_id and self.current_move_id.state in ("cancel", "done"):
+            raise exceptions.UserError(
+                "The move is already processed, aborting.")
         if self.current_step:
             steps = self.get_reception_screen_steps()
             step = steps[self.current_step]

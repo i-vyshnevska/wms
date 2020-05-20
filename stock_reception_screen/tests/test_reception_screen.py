@@ -1,7 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
-from odoo import fields
+from odoo import exceptions, fields
 from odoo.tests.common import SavepointCase
 
 
@@ -142,3 +142,22 @@ class TestReceptionScreen(SavepointCase):
         self.assertEqual(len(self.picking.move_lines), 2)
         move_states = self.picking.move_lines.mapped("state")
         self.assertTrue(all([state == "done" for state in move_states]))
+
+    def test_reception_screen_check_state(self):
+        self.product.tracking = "none"
+        # Select the product to receive
+        self.assertEqual(self.screen.current_step, "select_product")
+        move = fields.first(self.screen.picking_filtered_move_lines)
+        move.action_select_product()
+        self.assertEqual(self.screen.current_step, "set_quantity")
+        # And validate the picking behind the scene while we are processing it
+        # with the reception screen
+        for move in self.picking.move_lines:
+            move.quantity_done = move.product_uom_qty
+        self.picking.action_done()
+        self.assertEqual(self.picking.state, "done")
+        # Continue the work on the reception screen by receiving some qty:
+        # an error should be raised
+        self.screen.current_move_line_qty_done = 4
+        with self.assertRaises(exceptions.UserError):
+            self.screen.button_save_step()
