@@ -326,7 +326,7 @@ class StockReceptionScreen(models.Model):
             [
                 ("name", "=", barcode),
                 ("product_id", "=", self.current_move_id.product_id.id),
-                ("company_id", "=", self.env.user.company_id.id),
+                ("company_id", "=", self.picking_id.company_id.id),
             ]
         )
         if lot:
@@ -337,7 +337,7 @@ class StockReceptionScreen(models.Model):
             lot_vals = {
                 "name": barcode,
                 "product_id": self.current_move_id.product_id.id,
-                "company_id": self.env.user.company_id.id,
+                "company_id": self.picking_id.company_id.id,
             }
             lot = lot_model.create(lot_vals)
         # Check for an existing move line without lot otherwise create one
