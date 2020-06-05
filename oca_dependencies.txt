@@ -21,3 +21,4 @@
 
 server-tools
 stock-logistics-workflow
+web
