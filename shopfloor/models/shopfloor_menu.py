@@ -26,4 +26,5 @@ class ShopfloorMenu(models.Model):
             ("cluster_picking", "Cluster Picking"),
             ("checkout", "Checkout/Packing"),
             ("delivery", "Delivery"),
+            ("location_content_transfer", "Location Content Transfer"),
         ]
