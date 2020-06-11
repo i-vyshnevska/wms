@@ -533,6 +533,13 @@ class StockReceptionScreen(models.Model):
             self.env.user.notify_warning(message="", title=msg)
             return False
         if (
+            not self.current_move_line_product_packaging_id.volume
+            or not self.current_move_line_product_packaging_id.max_weight
+        ):
+            msg = _("Product packaging info are missing. Please use the CUBISCAN.")
+            self.env.user.notify_warning(message="", title=msg)
+            return False
+        if (
             self.current_move_line_product_packaging_type_is_pallet
             and not self.current_move_line_height
         ):
