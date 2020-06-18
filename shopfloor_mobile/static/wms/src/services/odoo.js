@@ -102,7 +102,7 @@ export class OdooMocked extends OdooMixin {
         let demo_data = this.demo_data;
         if (demo_data.by_menu_id && _.has(demo_data.by_menu_id, this.process_menu_id)) {
             // Load subset of responses by menu id
-            demo_data = demo_data[this.process_menu_id];
+            demo_data = demo_data.by_menu_id[this.process_menu_id];
         }
         if (_.has(demo_data, barcode)) {
             // Pick a specific case for this barcode
