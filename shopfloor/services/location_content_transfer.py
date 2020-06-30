@@ -206,6 +206,30 @@ class LocationContentTransfer(Component):
             self._find_location_move_lines_domain(location)
         )
 
+    def _create_moves_from_location(self, location):
+        # get all quants from the scanned location
+        quants = self.env["stock.quant"].search(
+            [("location_id", "=", location.id), ("quantity", ">", 0)]
+        )
+        # create moves for each quant
+        picking_type = self.work.menu.picking_type_ids
+        move_vals_list = []
+        for quant in quants:
+            move_vals_list.append(
+                {
+                    "name": quant.product_id.name,
+                    "company_id": picking_type.company_id.id,
+                    "product_id": quant.product_id.id,
+                    "product_uom": quant.product_uom_id.id,
+                    "product_uom_qty": quant.quantity,
+                    "location_id": location.id,
+                    "location_dest_id": picking_type.default_location_dest_id.id,
+                    "origin": self.work.menu.name,
+                    "picking_type_id": picking_type.id,
+                }
+            )
+        return self.env["stock.move"].create(move_vals_list)
+
     def scan_location(self, barcode):
         """Scan start location
 
@@ -233,9 +257,6 @@ class LocationContentTransfer(Component):
         if not location:
             return self._response_for_start(message=self.msg_store.barcode_not_found())
         move_lines = self._find_location_move_lines(location)
-        # TODO: Add creation of move lines and package levels when empty, see
-        # single_pack_transfer.py for creation of package levels (but quants
-        # without packs need to be created as move lines too here)
         pickings = move_lines.mapped("picking_id")
         picking_types = pickings.mapped("picking_type_id")
 
@@ -253,6 +274,22 @@ class LocationContentTransfer(Component):
                     "body": _("This location content can't be moved using this menu."),
                 }
             )
+        # If the following criteria are met:
+        #   - no move lines have been found
+        #   - the menu is configured to allow the creation of moves
+        #   - the menu is bind to one picking type
+        # then prepare new stock moves to move goods from the scanned location.
+        menu = self.work.menu
+        if (
+            not move_lines
+            and menu.allow_move_create
+            and len(menu.picking_type_ids) == 1
+        ):
+            new_moves = self._create_moves_from_location(location)
+            new_moves._action_confirm(merge=False)
+            new_moves._action_assign()
+            pickings = new_moves.mapped("picking_id")
+            move_lines = new_moves.move_line_ids
 
         for line in move_lines:
             line.qty_done = line.product_uom_qty
