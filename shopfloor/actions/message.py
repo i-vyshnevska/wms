@@ -329,3 +329,9 @@ class MessageAction(Component):
             "message_type": "info",
             "body": _("Recovered previous session."),
         }
+
+    def no_lines_to_process(self):
+        return {
+            "message_type": "info",
+            "body": _("No lines to process."),
+        }
