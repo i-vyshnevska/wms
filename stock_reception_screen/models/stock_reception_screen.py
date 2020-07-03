@@ -541,7 +541,13 @@ class StockReceptionScreen(models.Model):
             self.current_move_line_product_packaging_id
             and not self.current_move_line_product_packaging_type_is_pallet
             and (
-                not self.current_move_line_product_packaging_id.volume
+                # NOTE: we are not checking the 'volume' field as it is rounded
+                # to 0 with small dimensions and produces false positive results
+                not (
+                    self.current_move_line_product_packaging_id.lngth
+                    and self.current_move_line_product_packaging_id.width
+                    and self.current_move_line_product_packaging_id.height
+                )
                 or not self.current_move_line_product_packaging_id.max_weight
             )
         ):
