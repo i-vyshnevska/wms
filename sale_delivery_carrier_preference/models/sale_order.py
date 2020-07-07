@@ -24,20 +24,23 @@ class SaleOrder(models.Model):
             carrier = order.get_preferred_carrier()
             if not carrier:
                 continue
-            vals = carrier.rate_shipment(order)
-            if vals.get("success"):
-                delivery_price = vals["price"]
-                order.set_delivery_line(carrier, delivery_price)
-                order.recompute_delivery_price = False
-                if vals.get("warning_message"):
-                    order.delivery_message = vals["warning_message"]
-            else:
+            # rate_shipment returns None if the shipping method doesn't implement rate
+            # computation. If it returns a dict, we expect it to return if it was a success
+            # or not, however, to be defensive, consider that a dictionary without 'success'
+            # key was a success.
+            vals = carrier.rate_shipment(order) or {}
+            if not vals.get("success", True):
                 raise exceptions.UserError(
                     _(
                         "Error when adding shipping on {}. Try adding"
                         " shipping manually. Message: {}"
                     ).format(order.name, vals.get("error_message"))
                 )
+            delivery_price = vals.get("price", 0.0)
+            order.set_delivery_line(carrier, delivery_price)
+            order.recompute_delivery_price = False
+            if vals.get("warning_message"):
+                order.delivery_message = vals["warning_message"]
 
     @api.depends("order_line", "order_line.shipping_weight")
     def _compute_shipping_weight(self):
