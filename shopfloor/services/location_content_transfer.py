@@ -79,9 +79,7 @@ class LocationContentTransfer(Component):
         next_content = self._next_content(pickings)
         if not next_content:
             # TODO test (no more lines)
-            return self._response_for_start(
-                message=self.msg_store.location_content_transfer_complete(location)
-            )
+            return self._response_for_start(message=message)
         return self._response(
             next_state="start_single",
             data=self._data_content_line_for_location(location, next_content),
@@ -556,7 +554,7 @@ class LocationContentTransfer(Component):
         package_moves.with_context(_sf_no_backorder=True)._action_done()
         move_lines = self._find_transfer_move_lines(location)
         message = self.msg_store.location_content_transfer_item_complete(
-            scanned_location
+            package_level.location_id, scanned_location
         )
         return self._response_for_start_single(
             move_lines.mapped("picking_id"), message=message
@@ -628,7 +626,7 @@ class LocationContentTransfer(Component):
         move_line.move_id.with_context(_sf_no_backorder=True)._action_done()
         move_lines = self._find_transfer_move_lines(location)
         message = self.msg_store.location_content_transfer_item_complete(
-            scanned_location
+            move_line.location_id, scanned_location
         )
         return self._response_for_start_single(
             move_lines.mapped("picking_id"), message=message
