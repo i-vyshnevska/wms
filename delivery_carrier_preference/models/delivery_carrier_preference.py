@@ -4,9 +4,9 @@ from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
-class SaleDeliveryCarrierPreference(models.Model):
+class DeliveryCarrierPreference(models.Model):
 
-    _name = "sale.delivery.carrier.preference"
+    _name = "delivery.carrier.preference"
     _description = "Preferred Shipping Methods"
     _order = "sequence, id"
 
@@ -18,9 +18,7 @@ class SaleDeliveryCarrierPreference(models.Model):
         default="carrier",
     )
     carrier_id = fields.Many2one("delivery.carrier", ondelete="cascade")
-    sale_order_max_weight = fields.Float(
-        "Sale order max weight (kg)", help="Leave empty for no limit"
-    )
+    max_weight = fields.Float("Max weight (kg)", help="Leave empty for no limit")
     company_id = fields.Many2one(
         "res.company", required=True, default=lambda self: self.env.company
     )
@@ -46,15 +44,12 @@ class SaleDeliveryCarrierPreference(models.Model):
                 )
             )
 
-    @api.constrains("sale_order_max_weight")
-    def _check_sale_order_max_weight(self):
+    @api.constrains("max_weight")
+    def _check_max_weight(self):
         for pref in self:
-            if pref.sale_order_max_weight < 0:
+            if pref.max_weight < 0:
                 raise ValidationError(
-                    _(
-                        "Sale order max weight (kg) must have a positive or "
-                        "null value."
-                    )
+                    _("Max weight (kg) must have a positive or null value.")
                 )
 
     @api.onchange("preference")
@@ -77,14 +72,14 @@ class SaleDeliveryCarrierPreference(models.Model):
             pref.name = name
 
     @api.model
-    def get_preferred_carriers(self, order):
+    def get_preferred_carriers_for_sale_order(self, order):
         wiz = self.env["choose.delivery.carrier"].new({"order_id": order.id})
-        carrier_preferences = self.env["sale.delivery.carrier.preference"].search(
+        carrier_preferences = self.search(
             [
                 "&",
                 "|",
-                ("sale_order_max_weight", ">=", order.shipping_weight),
-                ("sale_order_max_weight", "=", 0.0),
+                ("max_weight", ">=", order.shipping_weight),
+                ("max_weight", "=", 0.0),
                 "|",
                 ("carrier_id", "in", wiz.available_carrier_ids.ids),
                 ("carrier_id", "=", False),

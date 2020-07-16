@@ -24,7 +24,7 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         cls.partner.write(
             {"property_delivery_carrier_id": cls.partner_specific_carrier.id}
         )
-        cls.env["sale.delivery.carrier.preference"].create(
+        cls.env["delivery.carrier.preference"].create(
             {
                 "sequence": 10,
                 "preference": "carrier",
@@ -32,7 +32,7 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
                 "sale_order_max_weight": 20.0,
             }
         )
-        cls.env["sale.delivery.carrier.preference"].create(
+        cls.env["delivery.carrier.preference"].create(
             {
                 "sequence": 20,
                 "preference": "carrier",
@@ -40,10 +40,10 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
                 "sale_order_max_weight": 40.0,
             }
         )
-        cls.env["sale.delivery.carrier.preference"].create(
+        cls.env["delivery.carrier.preference"].create(
             {"sequence": 30, "preference": "partner", "sale_order_max_weight": 60.0}
         )
-        cls.env["sale.delivery.carrier.preference"].create(
+        cls.env["delivery.carrier.preference"].create(
             {
                 "sequence": 40,
                 "preference": "carrier",
@@ -70,9 +70,9 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
     def test_available_carriers(self):
         sale_order = self._create_sale_order()
         self.assertAlmostEqual(sale_order.shipping_weight, 20.0)
-        carriers = self.env["sale.delivery.carrier.preference"].get_preferred_carriers(
-            sale_order
-        )
+        carriers = self.env[
+            "delivery.carrier.preference"
+        ].get_preferred_carriers_for_sale_order(sale_order)
         self.assertEqual(
             carriers,
             self.free_delivery_carrier
@@ -84,9 +84,9 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         self.assertEqual(preferred_carrier, self.normal_delivery_carrier)
         self._update_order_line_qty(sale_order, 3.0)
         self.assertAlmostEqual(sale_order.shipping_weight, 30.0)
-        carriers = self.env["sale.delivery.carrier.preference"].get_preferred_carriers(
-            sale_order
-        )
+        carriers = self.env[
+            "delivery.carrier.preference"
+        ].get_preferred_carriers_for_sale_order(sale_order)
         self.assertEqual(
             carriers,
             self.free_delivery_carrier
@@ -97,9 +97,9 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         self.assertEqual(preferred_carrier, self.the_poste_carrier)
         self._update_order_line_qty(sale_order, 5.0)
         self.assertAlmostEqual(sale_order.shipping_weight, 50.0)
-        carriers = self.env["sale.delivery.carrier.preference"].get_preferred_carriers(
-            sale_order
-        )
+        carriers = self.env[
+            "delivery.carrier.preference"
+        ].get_preferred_carriers_for_sale_order(sale_order)
         self.assertEqual(
             carriers, self.free_delivery_carrier | self.partner_specific_carrier
         )
@@ -107,9 +107,9 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         self.assertEqual(preferred_carrier, self.partner_specific_carrier)
         self._update_order_line_qty(sale_order, 7.0)
         self.assertAlmostEqual(sale_order.shipping_weight, 70.0)
-        carriers = self.env["sale.delivery.carrier.preference"].get_preferred_carriers(
-            sale_order
-        )
+        carriers = self.env[
+            "delivery.carrier.preference"
+        ].get_preferred_carriers_for_sale_order(sale_order)
         self.assertEqual(carriers, self.free_delivery_carrier)
         preferred_carrier = sale_order.get_preferred_carrier()
         self.assertEqual(preferred_carrier, self.free_delivery_carrier)

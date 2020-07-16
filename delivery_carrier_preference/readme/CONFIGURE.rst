@@ -6,3 +6,5 @@ use the partner's defined Delivery Method.
 
 These Preferred Shipping Methods will then be filtered out according to the
 order's shipping weight.
+
+Shipping weight calculation relies on `product_total_weight_from_packaging`.

@@ -50,7 +50,9 @@ class SaleOrder(models.Model):
     def get_preferred_carrier(self):
         self.ensure_one()
         return fields.first(
-            self.env["sale.delivery.carrier.preference"].get_preferred_carriers(self)
+            self.env[
+                "delivery.carrier.preference"
+            ].get_preferred_carriers_for_sale_order(self)
         )
 
     def action_open_delivery_wizard(self):
@@ -71,25 +73,13 @@ class SaleOrderLine(models.Model):
 
     @api.depends("product_id", "product_uom_qty", "product_uom")
     def _compute_shipping_weight(self):
-        uom_categ_weight = self.env.ref(
-            "uom.product_uom_categ_kgm", raise_if_not_found=False
-        )
-        uom_kg = self.env.ref("uom.product_uom_kgm", raise_if_not_found=False)
         for line in self:
             line_weight = 0
             if line.product_id and line.product_id.type == "product":
-                if line.product_uom.category_id == uom_categ_weight:
-                    if line.product_uom == uom_kg:
-                        line_weight = line.product_uom_qty
-                    else:
-                        line_weight = line.product_uom._compute_quantity(
-                            line.product_uom_qty, uom_kg
-                        )
-                else:
-                    line_qty = line.product_uom_qty
-                    if line.product_uom != line.product_id.uom_id:
-                        line_qty = line.product_uom._compute_quantity(
-                            line.product_uom_qty, line.product_id.uom_id
-                        )
-                    line_weight = line.product_id.weight * line_qty
+                line_qty = line.product_uom_qty
+                if line.product_uom != line.product_id.uom_id:
+                    line_qty = line.product_uom._compute_quantity(
+                        line.product_uom_qty, line.product_id.uom_id
+                    )
+                line_weight = line.product_id.get_total_weight_from_packaging(line_qty)
             line.shipping_weight = line_weight
