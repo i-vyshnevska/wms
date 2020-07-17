@@ -50,9 +50,9 @@ class SaleOrder(models.Model):
     def get_preferred_carrier(self):
         self.ensure_one()
         return fields.first(
-            self.env[
-                "delivery.carrier.preference"
-            ].get_preferred_carriers_for_sale_order(self)
+            self.env["delivery.carrier.preference"].get_preferred_carriers(
+                self.partner_shipping_id, self.shipping_weight, self.company_id
+            )
         )
 
     def action_open_delivery_wizard(self):

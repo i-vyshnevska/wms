@@ -22,6 +22,9 @@ class DeliveryCarrierPreference(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, default=lambda self: self.env.company
     )
+    picking_domain = fields.Char(
+        default=[], help="Domain for application of carrier on pickings",
+    )
 
     @api.constrains("preference", "carrier_id")
     def _check_preference_carrier_id(self):
@@ -58,7 +61,7 @@ class DeliveryCarrierPreference(models.Model):
         if self.preference == "partner" and self.carrier_id:
             self.carrier_id = False
 
-    @api.depends("preference", "carrier_id", "sale_order_max_weight")
+    @api.depends("preference", "carrier_id", "max_weight")
     def _compute_name(self):
         pref_descr = {
             k: v for k, v in self._fields["preference"]._description_selection(self.env)
@@ -67,21 +70,25 @@ class DeliveryCarrierPreference(models.Model):
             name = pref_descr.get(pref.preference)
             if pref.carrier_id:
                 name = _("%s: %s") % (name, pref.carrier_id.name)
-            if pref.sale_order_max_weight:
-                name = _("%s (Max weight %s kg)") % (name, pref.sale_order_max_weight)
+            if pref.max_weight:
+                name = _("%s (Max weight %s kg)") % (name, pref.max_weight)
             pref.name = name
 
     @api.model
-    def get_preferred_carriers_for_sale_order(self, order):
-        wiz = self.env["choose.delivery.carrier"].new({"order_id": order.id})
+    def get_preferred_carriers(self, partner, weight, company):
+        # TODO Check possible conflicting settings between doc company and
+        #  user preference defined on another company?
+        company_carriers = self.env["delivery.carrier"].search(
+            ["|", ("company_id", "=", False), ("company_id", "=", company.id)]
+        )
         carrier_preferences = self.search(
             [
                 "&",
                 "|",
-                ("max_weight", ">=", order.shipping_weight),
+                ("max_weight", ">=", weight),
                 ("max_weight", "=", 0.0),
                 "|",
-                ("carrier_id", "in", wiz.available_carrier_ids.ids),
+                ("carrier_id", "in", company_carriers.ids),
                 ("carrier_id", "=", False),
             ]
         )
@@ -90,11 +97,11 @@ class DeliveryCarrierPreference(models.Model):
             if cp.preference == "carrier":
                 carriers_ids.append(cp.carrier_id.id)
             else:
-                partner_carrier = order.partner_shipping_id.property_delivery_carrier_id
+                partner_carrier = partner.property_delivery_carrier_id
                 if partner_carrier:
                     carriers_ids.append(partner_carrier.id)
         return (
             self.env["delivery.carrier"]
             .browse(carriers_ids)
-            .available_carriers(order.partner_shipping_id)
+            .available_carriers(partner)
         )

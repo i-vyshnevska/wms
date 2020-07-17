@@ -11,5 +11,9 @@
     "application": False,
     "installable": True,
     "depends": ["delivery", "product_total_weight_from_packaging"],
-    "data": ["security/ir.model.access.csv", "views/delivery_carrier_preference.xml"],
+    "data": [
+        "security/ir.model.access.csv",
+        "views/delivery_carrier_preference.xml",
+        "views/stock_picking.xml",
+    ],
 }
