@@ -2,6 +2,8 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.osv.expression import AND
+from odoo.tools.safe_eval import const_eval
 
 
 class DeliveryCarrierPreference(models.Model):
@@ -23,7 +25,9 @@ class DeliveryCarrierPreference(models.Model):
         "res.company", required=True, default=lambda self: self.env.company
     )
     picking_domain = fields.Char(
-        default=[], help="Domain for application of carrier on pickings",
+        default=[],
+        help="Domain to restrict application of this preference "
+        "for carrier selection on pickings",
     )
 
     @api.constrains("preference", "carrier_id")
@@ -75,7 +79,7 @@ class DeliveryCarrierPreference(models.Model):
             pref.name = name
 
     @api.model
-    def get_preferred_carriers(self, partner, weight, company):
+    def get_preferred_carriers(self, partner, weight, company, picking=None):
         # TODO Check possible conflicting settings between doc company and
         #  user preference defined on another company?
         company_carriers = self.env["delivery.carrier"].search(
@@ -94,6 +98,12 @@ class DeliveryCarrierPreference(models.Model):
         )
         carriers_ids = list()
         for cp in carrier_preferences:
+            if (
+                picking is not None
+                and cp.picking_domain
+                and not cp._is_valid_for_picking(picking)
+            ):
+                continue
             if cp.preference == "carrier":
                 carriers_ids.append(cp.carrier_id.id)
             else:
@@ -104,4 +114,11 @@ class DeliveryCarrierPreference(models.Model):
             self.env["delivery.carrier"]
             .browse(carriers_ids)
             .available_carriers(partner)
+        )
+
+    def _is_valid_for_picking(self, picking):
+        self.ensure_one()
+        domain = const_eval(self.picking_domain)
+        return self.env["stock.picking"].search_count(
+            AND(domain, [("id", "=", picking.id)])
         )

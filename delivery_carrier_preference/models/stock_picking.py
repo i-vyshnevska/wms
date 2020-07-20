@@ -25,11 +25,11 @@ class StockPicking(models.Model):
     def get_preferred_carrier(self):
         self.ensure_one()
         return fields.first(
-            self.env[
-                "delivery.carrier.preference"
-                # TODO Apply carrier preference domain here?
-            ].get_preferred_carriers(
-                self.partner_id, self.estimated_shipping_weight, self.company_id
+            self.env["delivery.carrier.preference"].get_preferred_carriers(
+                self.partner_id,
+                self.estimated_shipping_weight,
+                self.company_id,
+                picking=self,
             )
         )
 
