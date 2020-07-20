@@ -19,6 +19,7 @@
 # sale-workflow https://github.com/OCA/sale-workflow branchname f848e37
 
 
+product-attribute
 server-tools
 web
 stock-logistics-workflow https://github.com/camptocamp/stock-logistics-workflow 13.0-stock_putaway_by_route
