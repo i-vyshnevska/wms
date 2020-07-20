@@ -20,5 +20,5 @@
 
 
 server-tools
-stock-logistics-workflow
 web
+stock-logistics-workflow https://github.com/camptocamp/stock-logistics-workflow 13.0-stock_putaway_by_route
