@@ -10,6 +10,10 @@
     "license": "AGPL-3",
     "application": False,
     "installable": True,
-    "depends": ["delivery_carrier_preference", "stock_available_to_promise_release"],
+    "depends": [
+        "delivery_carrier_preference",
+        "stock_available_to_promise_release",
+        "stock_picking_group_by_partner_by_carrier",
+    ],
     "data": ["views/stock_picking_type.xml"],
 }

@@ -5,6 +5,8 @@ from odoo import fields, models
 
 class PickingType(models.Model):
 
+    _inherit = "stock.picking.type"
+
     force_recompute_preferred_carrier_on_release = fields.Boolean(
         string="Force recomputation of preferred carrier.",
         help="Mark this box to trigger a recomputation of preferred carrier on"
