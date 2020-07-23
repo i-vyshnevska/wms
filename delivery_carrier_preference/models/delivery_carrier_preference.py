@@ -119,6 +119,9 @@ class DeliveryCarrierPreference(models.Model):
     def _is_valid_for_picking(self, picking):
         self.ensure_one()
         domain = const_eval(self.picking_domain)
-        return self.env["stock.picking"].search_count(
-            AND(domain, [("id", "=", picking.id)])
-        )
+        if not domain:
+            return True
+        else:
+            return self.env["stock.picking"].search_count(
+                AND(domain, [("id", "=", picking.id)])
+            )

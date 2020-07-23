@@ -24,33 +24,6 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         cls.partner.write(
             {"property_delivery_carrier_id": cls.partner_specific_carrier.id}
         )
-        cls.env["delivery.carrier.preference"].create(
-            {
-                "sequence": 10,
-                "preference": "carrier",
-                "carrier_id": cls.normal_delivery_carrier.id,
-                "max_weight": 20.0,
-            }
-        )
-        cls.env["delivery.carrier.preference"].create(
-            {
-                "sequence": 20,
-                "preference": "carrier",
-                "carrier_id": cls.the_poste_carrier.id,
-                "max_weight": 40.0,
-            }
-        )
-        cls.env["delivery.carrier.preference"].create(
-            {"sequence": 30, "preference": "partner", "max_weight": 60.0}
-        )
-        cls.env["delivery.carrier.preference"].create(
-            {
-                "sequence": 40,
-                "preference": "carrier",
-                "carrier_id": cls.free_delivery_carrier.id,
-                "max_weight": 0.0,
-            }
-        )
 
     @classmethod
     def _create_sale_order(cls):
