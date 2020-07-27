@@ -16,5 +16,4 @@
         "views/delivery_carrier_preference.xml",
         "views/stock_picking.xml",
     ],
-    "demo": ["demo/delivery_carrier_preference.xml"],
 }
