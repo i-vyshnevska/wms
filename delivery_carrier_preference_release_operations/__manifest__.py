@@ -10,6 +10,7 @@
     "license": "AGPL-3",
     "application": False,
     "installable": True,
+    "auto_install": True,
     "depends": [
         "delivery_carrier_preference",
         "stock_available_to_promise_release",
