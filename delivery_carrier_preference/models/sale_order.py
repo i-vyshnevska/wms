@@ -9,7 +9,7 @@ class SaleOrder(models.Model):
     _inherit = "sale.order"
 
     shipping_weight = fields.Float(
-        string="Shipping weight (kg)", compute="_compute_shipping_weight"
+        string="Shipping weight", compute="_compute_shipping_weight"
     )
 
     def action_confirm(self):
@@ -68,7 +68,7 @@ class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
     shipping_weight = fields.Float(
-        string="Shipping weight (kg)", compute="_compute_shipping_weight"
+        string="Shipping weight", compute="_compute_shipping_weight"
     )
 
     @api.depends("product_id", "product_uom_qty", "product_uom")

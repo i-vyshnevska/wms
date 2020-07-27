@@ -8,7 +8,7 @@ class StockMove(models.Model):
     _inherit = "stock.move"
 
     estimated_shipping_weight = fields.Float(
-        string="Estimated shipping weight (kg)",
+        string="Estimated shipping weight",
         compute="_compute_estimated_shipping_weight",
         help="Total weight calculated according to the move quantity and "
         "weight defined on packagings for this product.",

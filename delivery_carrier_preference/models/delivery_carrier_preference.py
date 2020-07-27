@@ -3,6 +3,7 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.osv.expression import AND
+from odoo.tools import float_compare
 from odoo.tools.safe_eval import const_eval
 
 
@@ -20,7 +21,10 @@ class DeliveryCarrierPreference(models.Model):
         default="carrier",
     )
     carrier_id = fields.Many2one("delivery.carrier", ondelete="cascade")
-    max_weight = fields.Float("Max weight (kg)", help="Leave empty for no limit")
+    max_weight = fields.Float("Max weight", help="Leave empty for no limit")
+    max_weight_uom_id = fields.Many2one(
+        compute="_compute_max_weight_uom_id", readonly=True
+    )
     company_id = fields.Many2one(
         "res.company", required=True, default=lambda self: self.env.company
     )
@@ -54,9 +58,16 @@ class DeliveryCarrierPreference(models.Model):
     @api.constrains("max_weight")
     def _check_max_weight(self):
         for pref in self:
-            if pref.max_weight < 0:
+            if (
+                float_compare(
+                    pref.max_weight,
+                    0,
+                    precision_rounding=pref.max_weight_uom_id.rounding,
+                )
+                < 0
+            ):
                 raise ValidationError(
-                    _("Max weight (kg) must have a positive or null value.")
+                    _("Max weight must have a positive or null value.")
                 )
 
     @api.onchange("preference")
@@ -75,8 +86,18 @@ class DeliveryCarrierPreference(models.Model):
             if pref.carrier_id:
                 name = _("%s: %s") % (name, pref.carrier_id.name)
             if pref.max_weight:
-                name = _("%s (Max weight %s kg)") % (name, pref.max_weight)
+                name = _("%s (Max weight %s %s)") % (
+                    name,
+                    pref.max_weight,
+                    pref.max_weight_uom_id.display_name,
+                )
             pref.name = name
+
+    def _compute_max_weight_uom_id(self):
+        for pref in self:
+            pref.max_weight_uom_id = self.env[
+                "product.template"
+            ]._get_weight_uom_id_from_ir_config_parameter()
 
     @api.model
     def get_preferred_carriers(self, partner, weight, company, picking=None):
