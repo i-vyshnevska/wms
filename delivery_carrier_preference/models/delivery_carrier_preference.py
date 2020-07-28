@@ -23,7 +23,13 @@ class DeliveryCarrierPreference(models.Model):
     carrier_id = fields.Many2one("delivery.carrier", ondelete="cascade")
     max_weight = fields.Float("Max weight", help="Leave empty for no limit")
     max_weight_uom_id = fields.Many2one(
-        compute="_compute_max_weight_uom_id", readonly=True
+        "uom.uom",
+        compute="_compute_max_weight_uom_id",
+        readonly=True,
+        default=lambda p: p._default_max_weight_uom_id(),
+    )
+    max_weight_uom_name = fields.Char(
+        related="max_weight_uom_id.display_name", readonly=True
     )
     company_id = fields.Many2one(
         "res.company", required=True, default=lambda self: self.env.company
@@ -93,13 +99,14 @@ class DeliveryCarrierPreference(models.Model):
                 )
             pref.name = name
 
+    def _default_max_weight_uom_id(self):
+        return self.env[
+            "product.template"
+        ]._get_weight_uom_id_from_ir_config_parameter()
+
     def _compute_max_weight_uom_id(self):
         for pref in self:
-            pref.max_weight_uom_id = (
-                self.env["product.template"]
-                ._get_weight_uom_id_from_ir_config_parameter()
-                .id
-            )
+            pref.max_weight_uom_id = self._default_max_weight_uom_id().id
 
     @api.model
     def get_preferred_carriers(self, partner, weight, company, picking=None):

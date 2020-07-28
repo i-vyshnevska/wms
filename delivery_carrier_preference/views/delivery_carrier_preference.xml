@@ -39,7 +39,12 @@
                         </group>
                         <group>
                             <field name="sequence" />
-                            <field name="max_weight" />
+                            <label for="max_weight" />
+                            <div name="max_weight">
+                                <field name="max_weight" class="oe_inline" />
+                                <field name="max_weight_uom_name" class="oe_inline" />
+                                <field name="max_weight_uom_id" invisible="1" />
+                            </div>
                             <field
                                 name="company_id"
                                 groups="base.group_multi_company"
