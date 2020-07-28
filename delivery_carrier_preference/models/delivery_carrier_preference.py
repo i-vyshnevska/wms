@@ -95,9 +95,11 @@ class DeliveryCarrierPreference(models.Model):
 
     def _compute_max_weight_uom_id(self):
         for pref in self:
-            pref.max_weight_uom_id = self.env[
-                "product.template"
-            ]._get_weight_uom_id_from_ir_config_parameter()
+            pref.max_weight_uom_id = (
+                self.env["product.template"]
+                ._get_weight_uom_id_from_ir_config_parameter()
+                .id
+            )
 
     @api.model
     def get_preferred_carriers(self, partner, weight, company, picking=None):
