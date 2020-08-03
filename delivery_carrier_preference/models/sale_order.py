@@ -61,25 +61,3 @@ class SaleOrder(models.Model):
             carrier = self.get_preferred_carrier()
             res["context"]["default_carrier_id"] = carrier.id
         return res
-
-
-class SaleOrderLine(models.Model):
-
-    _inherit = "sale.order.line"
-
-    shipping_weight = fields.Float(
-        string="Shipping weight", compute="_compute_shipping_weight"
-    )
-
-    @api.depends("product_id", "product_uom_qty", "product_uom")
-    def _compute_shipping_weight(self):
-        for line in self:
-            line_weight = 0
-            if line.product_id and line.product_id.type == "product":
-                line_qty = line.product_uom_qty
-                if line.product_uom != line.product_id.uom_id:
-                    line_qty = line.product_uom._compute_quantity(
-                        line.product_uom_qty, line.product_id.uom_id
-                    )
-                line_weight = line.product_id.get_total_weight_from_packaging(line_qty)
-            line.shipping_weight = line_weight

@@ -10,10 +10,16 @@
     "license": "AGPL-3",
     "application": False,
     "installable": True,
-    "depends": ["delivery", "product_total_weight_from_packaging"],
+    "depends": [
+        "delivery",
+        "product_total_weight_from_packaging",
+        "stock_available_to_promise_release",
+        "stock_picking_group_by_partner_by_carrier",
+    ],
     "data": [
         "security/ir.model.access.csv",
         "views/delivery_carrier_preference.xml",
         "views/stock_picking.xml",
+        "views/stock_picking_type.xml",
     ],
 }

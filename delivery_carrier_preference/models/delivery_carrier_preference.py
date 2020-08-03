@@ -2,9 +2,7 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
-from odoo.osv.expression import AND
 from odoo.tools import float_compare
-from odoo.tools.safe_eval import const_eval
 
 
 class DeliveryCarrierPreference(models.Model):
@@ -107,51 +105,3 @@ class DeliveryCarrierPreference(models.Model):
     def _compute_max_weight_uom_id(self):
         for pref in self:
             pref.max_weight_uom_id = self._default_max_weight_uom_id().id
-
-    @api.model
-    def get_preferred_carriers(self, partner, weight, company, picking=None):
-        # TODO Check possible conflicting settings between doc company and
-        #  user preference defined on another company?
-        company_carriers = self.env["delivery.carrier"].search(
-            ["|", ("company_id", "=", False), ("company_id", "=", company.id)]
-        )
-        carrier_preferences = self.search(
-            [
-                "&",
-                "|",
-                ("max_weight", ">=", weight),
-                ("max_weight", "=", 0.0),
-                "|",
-                ("carrier_id", "in", company_carriers.ids),
-                ("carrier_id", "=", False),
-            ]
-        )
-        carriers_ids = list()
-        for cp in carrier_preferences:
-            if (
-                picking is not None
-                and cp.picking_domain
-                and not cp._is_valid_for_picking(picking)
-            ):
-                continue
-            if cp.preference == "carrier":
-                carriers_ids.append(cp.carrier_id.id)
-            else:
-                partner_carrier = partner.property_delivery_carrier_id
-                if partner_carrier:
-                    carriers_ids.append(partner_carrier.id)
-        return (
-            self.env["delivery.carrier"]
-            .browse(carriers_ids)
-            .available_carriers(partner)
-        )
-
-    def _is_valid_for_picking(self, picking):
-        self.ensure_one()
-        domain = const_eval(self.picking_domain)
-        if not domain:
-            return True
-        else:
-            return self.env["stock.picking"].search_count(
-                AND(domain, [("id", "=", picking.id)])
-            )

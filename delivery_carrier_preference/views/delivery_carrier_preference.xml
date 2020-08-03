@@ -62,8 +62,7 @@
     <menuitem
         id="menu_delivery_carrier_preference"
         name="Preferred Shipping Methods"
-        parent="sale.menu_sales_config"
+        parent="delivery.menu_delivery"
         action="action_delivery_carrier_preference_view"
-        groups="sales_team.group_sale_manager"
     />
 </odoo>
