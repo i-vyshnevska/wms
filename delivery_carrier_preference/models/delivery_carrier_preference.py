@@ -33,7 +33,7 @@ class DeliveryCarrierPreference(models.Model):
         "res.company", required=True, default=lambda self: self.env.company
     )
     picking_domain = fields.Char(
-        default=[],
+        default="[]",
         help="Domain to restrict application of this preference "
         "for carrier selection on pickings",
     )

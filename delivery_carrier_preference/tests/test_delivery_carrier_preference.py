@@ -1,9 +1,13 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
-from odoo.tests.common import Form, SavepointCase
+from odoo.tests.common import Form
+
+from odoo.addons.stock_available_to_promise_release.tests.test_reservation import (
+    TestAvailableToPromiseRelease,
+)
 
 
-class TestSaleDeliveryCarrierPreference(SavepointCase):
+class TestSaleDeliveryCarrierPreference(TestAvailableToPromiseRelease):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -12,18 +16,17 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
         cls.partner = ref("base.res_partner_12")
         cls.product = ref("product.product_product_20")
         cls.product.write({"weight": 10.0})
+
         cls.free_delivery_carrier = ref("delivery.free_delivery_carrier")
         cls.the_poste_carrier = ref("delivery.delivery_carrier")
         cls.normal_delivery_carrier = ref("delivery.normal_delivery_carrier")
-        cls.partner_specific_carrier = cls.env["delivery.carrier"].create(
+        cls.super_fast_carrier = cls.env["delivery.carrier"].create(
             {
-                "name": "Partner specific",
+                "name": "Super fast carrier",
                 "product_id": cls.free_delivery_carrier.product_id.id,
             }
         )
-        cls.partner.write(
-            {"property_delivery_carrier_id": cls.partner_specific_carrier.id}
-        )
+        cls.partner.write({"property_delivery_carrier_id": cls.super_fast_carrier.id})
         cls.env["delivery.carrier.preference"].create(
             {
                 "sequence": 10,
@@ -41,7 +44,13 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
             }
         )
         cls.env["delivery.carrier.preference"].create(
-            {"sequence": 30, "preference": "partner", "max_weight": 60.0}
+            {
+                "sequence": 30,
+                "preference": "carrier",
+                "carrier_id": cls.super_fast_carrier.id,
+                "max_weight": 0.0,
+                "picking_domain": "[('priority', '=', '3')]",
+            }
         )
         cls.env["delivery.carrier.preference"].create(
             {
@@ -51,11 +60,17 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
                 "max_weight": 0.0,
             }
         )
+        cls.wh.delivery_route_id.write({"available_to_promise_defer_pull": True})
+        cls.outgoing_pick_type = cls.wh.out_type_id
+        cls.outgoing_pick_type.write(
+            {"force_recompute_preferred_carrier_on_release": True}
+        )
 
     @classmethod
     def _create_sale_order(cls):
         sale_form = Form(cls.env["sale.order"])
         sale_form.partner_id = cls.partner
+        sale_form.warehouse_id = cls.wh
         with sale_form.order_line.new() as line_form:
             line_form.product_id = cls.product
             line_form.product_uom_qty = 2
@@ -67,57 +82,71 @@ class TestSaleDeliveryCarrierPreference(SavepointCase):
             with sale_form.order_line.edit(0) as line:
                 line.product_uom_qty = qty
 
-    def test_sale_order_available_carriers(self):
-        sale_order = self._create_sale_order()
-        self.assertAlmostEqual(sale_order.shipping_weight, 20.0)
-        carriers = self.env["delivery.carrier.preference"].get_preferred_carriers(
-            sale_order.partner_shipping_id,
-            sale_order.shipping_weight,
-            sale_order.company_id,
+    @classmethod
+    def _add_shipping_on_order(cls, order, carrier=None):
+        delivery_wiz_action = order.action_open_delivery_wizard()
+        delivery_wiz_context = delivery_wiz_action.get("context", {})
+        if carrier is not None:
+            delivery_wiz_context["default_carrier_id"] = carrier.id
+        delivery_wiz = (
+            cls.env[delivery_wiz_action.get("res_model")]
+            .with_context(**delivery_wiz_context)
+            .create({})
         )
-        self.assertEqual(
-            carriers,
-            self.free_delivery_carrier
-            | self.the_poste_carrier
-            | self.normal_delivery_carrier
-            | self.partner_specific_carrier,
+        delivery_wiz.button_confirm()
+
+    def test_delivery_add_preferred_carrier(self):
+        """
+        With a qty of 5 in the sale order and only 3 available to promise,
+        estimated_shipping_weight is 30, and preferred carrier 'the poste'
+        """
+        order = self._create_sale_order()
+        self._update_order_line_qty(order, 5)
+        self.env["stock.quant"]._update_available_quantity(
+            self.product, self.loc_stock, 3
         )
-        preferred_carrier = sale_order.get_preferred_carrier()
-        self.assertEqual(preferred_carrier, self.normal_delivery_carrier)
-        self._update_order_line_qty(sale_order, 3.0)
-        self.assertAlmostEqual(sale_order.shipping_weight, 30.0)
-        carriers = self.env["delivery.carrier.preference"].get_preferred_carriers(
-            sale_order.partner_shipping_id,
-            sale_order.shipping_weight,
-            sale_order.company_id,
+        order.action_confirm()
+        delivery_pick = order.picking_ids
+        self.assertAlmostEqual(delivery_pick.estimated_shipping_weight, 30.0)
+        delivery_pick.add_preferred_carrier()
+        self.assertEqual(delivery_pick.carrier_id, self.the_poste_carrier)
+
+    def test_delivery_release_available_to_promise(self):
+        """
+        With carrier 'super fast' and a qty of 3 in the sale order,
+        only 2 available to promise, estimated_shipping_weight is 20.0,
+        so preferred carrier after the release is 'normal' and backorder get
+        'super fast'
+        """
+        order = self._create_sale_order()
+        self._update_order_line_qty(order, 3)
+        self.env["stock.quant"]._update_available_quantity(
+            self.product, self.loc_stock, 2
         )
-        self.assertEqual(
-            carriers,
-            self.free_delivery_carrier
-            | self.the_poste_carrier
-            | self.partner_specific_carrier,
+        self._add_shipping_on_order(order)
+        self.assertEqual(order.carrier_id, self.super_fast_carrier)
+        order.action_confirm()
+        delivery_pick = order.picking_ids
+        self.assertAlmostEqual(delivery_pick.estimated_shipping_weight, 20.0)
+        delivery_pick.release_available_to_promise()
+        self.assertEqual(delivery_pick.carrier_id, self.normal_delivery_carrier)
+        backorder = delivery_pick.backorder_ids
+        self.assertEqual(backorder.carrier_id, self.super_fast_carrier)
+
+    def test_delivery_add_preferred_carrier_picking_domain(self):
+        """
+        With a qty of 5 in the sale order and 5 available to promise,
+        estimated_shipping_weight is 50, and with a priority of 2, preferred
+        carrier must be free
+        """
+        order = self._create_sale_order()
+        self._update_order_line_qty(order, 5)
+        self.env["stock.quant"]._update_available_quantity(
+            self.product, self.loc_stock, 5
         )
-        preferred_carrier = sale_order.get_preferred_carrier()
-        self.assertEqual(preferred_carrier, self.the_poste_carrier)
-        self._update_order_line_qty(sale_order, 5.0)
-        self.assertAlmostEqual(sale_order.shipping_weight, 50.0)
-        carriers = self.env["delivery.carrier.preference"].get_preferred_carriers(
-            sale_order.partner_shipping_id,
-            sale_order.shipping_weight,
-            sale_order.company_id,
-        )
-        self.assertEqual(
-            carriers, self.free_delivery_carrier | self.partner_specific_carrier
-        )
-        preferred_carrier = sale_order.get_preferred_carrier()
-        self.assertEqual(preferred_carrier, self.partner_specific_carrier)
-        self._update_order_line_qty(sale_order, 7.0)
-        self.assertAlmostEqual(sale_order.shipping_weight, 70.0)
-        carriers = self.env["delivery.carrier.preference"].get_preferred_carriers(
-            sale_order.partner_shipping_id,
-            sale_order.shipping_weight,
-            sale_order.company_id,
-        )
-        self.assertEqual(carriers, self.free_delivery_carrier)
-        preferred_carrier = sale_order.get_preferred_carrier()
-        self.assertEqual(preferred_carrier, self.free_delivery_carrier)
+        order.action_confirm()
+        delivery_pick = order.picking_ids
+        self.assertEqual(delivery_pick.priority, "1")
+        self.assertAlmostEqual(delivery_pick.estimated_shipping_weight, 50.0)
+        delivery_pick.add_preferred_carrier()
+        self.assertEqual(delivery_pick.carrier_id, self.free_delivery_carrier)

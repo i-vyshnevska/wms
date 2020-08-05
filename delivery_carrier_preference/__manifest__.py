@@ -5,7 +5,7 @@
     "summary": "Advanced selection of preferred shipping methods",
     "version": "13.0.1.2.0",
     "category": "Operations/Inventory/Delivery",
-    "website": "https://github.com/OCA/delivery-carrier",
+    "website": "https://github.com/OCA/wms",
     "author": "Camptocamp, Odoo Community Association (OCA)",
     "license": "AGPL-3",
     "application": False,

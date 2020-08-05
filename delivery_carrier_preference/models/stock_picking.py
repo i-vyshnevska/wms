@@ -46,7 +46,7 @@ class StockPicking(models.Model):
         #  user preference defined on another company?
         self.ensure_one()
         company_carriers = self.env["delivery.carrier"].search(
-            ["|", ("company_id", "=", False), ("company_id", "=", self.company.id)]
+            ["|", ("company_id", "=", False), ("company_id", "=", self.company_id.id)]
         )
         carrier_preferences = self.env["delivery.carrier.preference"].search(
             [
@@ -61,26 +61,35 @@ class StockPicking(models.Model):
         )
         carriers_ids = list()
         for cp in carrier_preferences:
-            if cp.picking_domain and not self._is_valid_delivery_preference(cp):
+            if cp.picking_domain and not self._picking_domain_valid(cp):
                 continue
+
             if cp.preference == "carrier":
-                carriers_ids.append(cp.carrier_id.id)
+                carrier = cp.carrier_id
+                # carriers_ids.append(cp.carrier_id.id)
             else:
-                partner_carrier = self.partner_id.property_delivery_carrier_id
-                if partner_carrier:
-                    carriers_ids.append(partner_carrier.id)
+                # partner_carrier = self.partner_id.property_delivery_carrier_id
+                # if partner_carrier:
+                #     carriers_ids.append(partner_carrier.id)
+                carrier = self.partner_id.property_delivery_carrier_id
+            if not carrier or not self._carrier_valid(carrier):
+                continue
+            carriers_ids.append(carrier.id)
         return (
             self.env["delivery.carrier"]
             .browse(carriers_ids)
             .available_carriers(self.partner_id)
         )
 
-    def _is_valid_delivery_preference(self):
+    def _picking_domain_valid(self, carrier_preference):
         self.ensure_one()
-        domain = const_eval(self.picking_domain)
+        domain = const_eval(carrier_preference.picking_domain)
         if not domain:
             return True
         else:
-            return self.env["stock.picking"].search_count(
-                AND(domain, [("id", "=", self.id)])
-            )
+            return self.search_count(AND([domain, [("id", "=", self.id)]]))
+
+    def _carrier_valid(self, carrier):
+        """Hook to add extra validation between carrier and picking"""
+        self.ensure_one()
+        return True
