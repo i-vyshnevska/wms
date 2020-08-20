@@ -461,13 +461,15 @@ class ZonePicking(Component, ChangePackLotMixin):
     def _set_destination_location(
         self, zone_location, picking_type, move_line, quantity, confirmation, location
     ):
+        location_changed = False
+        response = None
         # Ask confirmation to the user if the scanned location is not in the
         # expected ones but is valid (in picking type's default destination)
         if not location.is_sublocation_of(move_line.location_dest_id) and (
             not confirmation
             and location.is_sublocation_of(picking_type.default_location_dest_id)
         ):
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
@@ -476,6 +478,7 @@ class ZonePicking(Component, ChangePackLotMixin):
                 ),
                 confirmation_required=True,
             )
+            return (location_changed, response)
         # A valid location is a sub-location of the original destination, or a
         # sub-location of the picking type's default destination location if
         # `confirmation is True
@@ -483,20 +486,22 @@ class ZonePicking(Component, ChangePackLotMixin):
             confirmation
             and not location.is_sublocation_of(picking_type.default_location_dest_id)
         ):
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
                 message=self.msg_store.dest_location_not_allowed(),
             )
+            return (location_changed, response)
         # If no destination package
         if not move_line.result_package_id:
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
                 message=self.msg_store.dest_package_required(),
             )
+            return (location_changed, response)
         # destination location set to the scanned one
         move_line.location_dest_id = location
         # the quantity done is set to the passed quantity
@@ -508,15 +513,14 @@ class ZonePicking(Component, ChangePackLotMixin):
         # try to re-assign any split move (in case of partial qty)
         if "confirmed" in move_line.picking_id.move_lines.mapped("state"):
             move_line.picking_id.action_assign()
+        location_changed = True
         # Zero check
         zero_check = picking_type.shopfloor_zero_check
         if zero_check and move_line.location_id.planned_qty_in_location_is_empty():
-            return self._response_for_zero_check(
+            response = self._response_for_zero_check(
                 zone_location, picking_type, move_line.location_id
             )
-
-    def _is_set_destination_location_completed(self, move_line, location, qty):
-        return move_line.qty_done == qty and move_line.location_dest_id == location
+        return (location_changed, response)
 
     def _is_package_empty(self, package):
         return not bool(package.quant_ids)
@@ -546,35 +550,40 @@ class ZonePicking(Component, ChangePackLotMixin):
     def _set_destination_package(
         self, zone_location, picking_type, move_line, quantity, package
     ):
+        package_changed = False
+        response = None
         # A valid package is:
         # * an empty package
         # * not used as destination for another move line
         if not self._is_package_empty(package):
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
                 message=self.msg_store.package_not_empty(package),
             )
+            return (package_changed, response)
         if self._is_package_already_used(package):
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
                 message=self.msg_store.package_already_used(package),
             )
+            return (package_changed, response)
         # the quantity done is set to the passed quantity
         # but if we move a partial qty, we need to split the move line
         compare = self._move_line_compare_qty(move_line, quantity)
         qty_lesser = compare == -1
         qty_greater = compare == 1
         if qty_greater:
-            return self._response_for_set_line_destination(
+            response = self._response_for_set_line_destination(
                 zone_location,
                 picking_type,
                 move_line,
                 message=self.msg_store.unable_to_pick_more(move_line.product_uom_qty),
             )
+            return (package_changed, response)
         elif qty_lesser:
             # split the move line which will be processed later
             remaining = move_line.product_uom_qty - quantity
@@ -590,19 +599,14 @@ class ZonePicking(Component, ChangePackLotMixin):
         move_line.result_package_id = package
         # the field ``shopfloor_user_id`` is updated with the current user
         move_line.shopfloor_user_id = self.env.user
+        package_changed = True
         # Zero check
         zero_check = picking_type.shopfloor_zero_check
         if zero_check and move_line.location_id.planned_qty_in_location_is_empty():
-            return self._response_for_zero_check(
+            response = self._response_for_zero_check(
                 zone_location, picking_type, move_line.location_id
             )
-
-    def _is_set_destination_package_completed(self, move_line, package, qty):
-        return (
-            move_line.qty_done == qty
-            and move_line.result_package_id == package
-            and move_line.shopfloor_user_id == self.env.user
-        )
+        return (package_changed, response)
 
     def set_destination(
         self,
@@ -675,16 +679,13 @@ class ZonePicking(Component, ChangePackLotMixin):
             # When the barcode is a location
             location = search.location_from_scan(barcode)
             if location:
-                response = self._set_destination_location(
+                pkg_moved, response = self._set_destination_location(
                     zone_location,
                     picking_type,
                     move_line,
                     quantity,
                     confirmation,
                     location,
-                )
-                pkg_moved = self._is_set_destination_location_completed(
-                    move_line, location, quantity
                 )
                 if response:
                     return response
@@ -693,11 +694,8 @@ class ZonePicking(Component, ChangePackLotMixin):
         package = search.package_from_scan(barcode)
         if package:
             location = move_line.location_dest_id
-            response = self._set_destination_package(
+            pkg_moved, response = self._set_destination_package(
                 zone_location, picking_type, move_line, quantity, package
-            )
-            pkg_moved = self._is_set_destination_package_completed(
-                move_line, package, quantity
             )
             if response:
                 return response
