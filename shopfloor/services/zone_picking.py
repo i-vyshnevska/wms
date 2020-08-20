@@ -1,7 +1,7 @@
 import functools
 
 from odoo.fields import first
-from odoo.tools.float_utils import float_compare
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 from odoo.addons.base_rest.components.service import to_bool, to_int
 from odoo.addons.component.core import Component
@@ -555,6 +555,18 @@ class ZonePicking(Component, ChangePackLotMixin):
             )
         )
 
+    def _move_line_compare_qty(self, move_line, qty):
+        rounding = move_line.product_uom_id.rounding
+        return float_compare(
+            qty, move_line.product_uom_qty, precision_rounding=rounding
+        )
+
+    def _move_line_full_qty(self, move_line, qty):
+        rounding = move_line.product_uom_id.rounding
+        return float_is_zero(
+            move_line.product_uom_qty - qty, precision_rounding=rounding
+        )
+
     def _set_destination_package(
         self, zone_location, picking_type, move_line, quantity, package
     ):
@@ -577,10 +589,7 @@ class ZonePicking(Component, ChangePackLotMixin):
             )
         # the quantity done is set to the passed quantity
         # but if we move a partial qty, we need to split the move line
-        rounding = move_line.product_uom_id.rounding
-        compare = float_compare(
-            quantity, move_line.product_uom_qty, precision_rounding=rounding
-        )
+        compare = self._move_line_compare_qty(move_line, quantity)
         qty_lesser = compare == -1
         qty_greater = compare == 1
         if qty_greater:
@@ -674,15 +683,30 @@ class ZonePicking(Component, ChangePackLotMixin):
         move_line = self.env["stock.move.line"].browse(move_line_id)
         if not move_line.exists():
             return self._response_for_start(message=self.msg_store.record_not_found())
+
+        pkg_moved = False
         search = self.actions_for("search")
-        # When the barcode is a location
-        location = search.location_from_scan(barcode)
-        if location:
-            response = self._set_destination_location(
-                zone_location, picking_type, move_line, quantity, confirmation, location
-            )
-            if response:
-                return response
+        accept_only_package = not self._move_line_full_qty(move_line, quantity)
+        if not accept_only_package:
+            # When the barcode is a location
+            location = search.location_from_scan(barcode)
+            if location:
+                response = self._set_destination_location(
+                    zone_location,
+                    picking_type,
+                    move_line,
+                    quantity,
+                    confirmation,
+                    location,
+                )
+                if response:
+                    return response
+                else:
+                    # TODO we should have a better way to determine this.
+                    # Right now is based on the fact that set destination
+                    # returns a response if we have to redirect somewhere else
+                    # because of issues.
+                    pkg_moved = True
         # When the barcode is a package
         package = search.package_from_scan(barcode)
         if package:
@@ -692,11 +716,23 @@ class ZonePicking(Component, ChangePackLotMixin):
             )
             if response:
                 return response
+            else:
+                pkg_moved = True
+
+        message = None
+
+        if not pkg_moved and not package and accept_only_package:
+            message = self.msg_store.package_not_found_for_barcode(barcode)
+            return self._response_for_set_line_destination(
+                zone_location, picking_type, move_line, message=message
+            )
+
+        if pkg_moved:
+            message = self.msg_store.confirm_pack_moved()
+
         # Process the next line
         response = self.list_move_lines(zone_location.id, picking_type.id)
-        return self._response(
-            base_response=response, message=self.msg_store.confirm_pack_moved(),
-        )
+        return self._response(base_response=response, message=message,)
 
     def is_zero(self, zone_location_id, picking_type_id, move_line_id, zero):
         """Confirm or not if the source location of a move has zero qty
@@ -1175,6 +1211,7 @@ class ZonePicking(Component, ChangePackLotMixin):
                 move_lines,
                 message=self.msg_store.record_not_found(),
             )
+
         buffer_lines = self._find_buffer_move_lines(
             zone_location, picking_type, dest_package=package
         )
@@ -1221,6 +1258,9 @@ class ZonePicking(Component, ChangePackLotMixin):
             return self._response_for_start(
                 message=self.msg_store.picking_type_complete(picking_type)
             )
+        # TODO: when we have no lines here
+        # we should not redirect to `unload_set_destination`
+        # because we'll have nothing to display (currently the UI is broken).
         return self._response_for_unload_set_destination(
             zone_location,
             picking_type,
