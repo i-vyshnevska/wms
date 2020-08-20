@@ -515,6 +515,9 @@ class ZonePicking(Component, ChangePackLotMixin):
                 zone_location, picking_type, move_line.location_id
             )
 
+    def _is_set_destination_location_completed(self, move_line, location, qty):
+        return move_line.qty_done == qty and move_line.location_dest_id == location
+
     def _is_package_empty(self, package):
         return not bool(package.quant_ids)
 
@@ -594,6 +597,13 @@ class ZonePicking(Component, ChangePackLotMixin):
                 zone_location, picking_type, move_line.location_id
             )
 
+    def _is_set_destination_package_completed(self, move_line, package, qty):
+        return (
+            move_line.qty_done == qty
+            and move_line.result_package_id == package
+            and move_line.shopfloor_user_id == self.env.user
+        )
+
     def set_destination(
         self,
         zone_location_id,
@@ -660,6 +670,7 @@ class ZonePicking(Component, ChangePackLotMixin):
         pkg_moved = False
         search = self.actions_for("search")
         accept_only_package = not self._move_line_full_qty(move_line, quantity)
+
         if not accept_only_package:
             # When the barcode is a location
             location = search.location_from_scan(barcode)
@@ -672,14 +683,12 @@ class ZonePicking(Component, ChangePackLotMixin):
                     confirmation,
                     location,
                 )
+                pkg_moved = self._is_set_destination_location_completed(
+                    move_line, location, quantity
+                )
                 if response:
                     return response
-                else:
-                    # TODO we should have a better way to determine this.
-                    # Right now is based on the fact that set destination
-                    # returns a response if we have to redirect somewhere else
-                    # because of issues.
-                    pkg_moved = True
+
         # When the barcode is a package
         package = search.package_from_scan(barcode)
         if package:
@@ -687,10 +696,11 @@ class ZonePicking(Component, ChangePackLotMixin):
             response = self._set_destination_package(
                 zone_location, picking_type, move_line, quantity, package
             )
+            pkg_moved = self._is_set_destination_package_completed(
+                move_line, package, quantity
+            )
             if response:
                 return response
-            else:
-                pkg_moved = True
 
         message = None
 
