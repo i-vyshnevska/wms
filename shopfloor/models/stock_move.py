@@ -12,9 +12,10 @@ class StockMove(models.Model):
         `move_lines` and `move.move_line_ids` which will be put in a new move.
         """
         self.ensure_one()
-        other_move_lines = self.move_line_ids - move_lines
         if intersection:
             other_move_lines = self.move_line_ids & move_lines
+        else:
+            other_move_lines = self.move_line_ids - move_lines
         if other_move_lines:
             qty_to_split = sum(other_move_lines.mapped("product_uom_qty"))
             backorder_move_id = self._split(qty_to_split)

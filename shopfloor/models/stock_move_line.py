@@ -1,4 +1,5 @@
 from odoo import _, fields, models
+from odoo.exceptions import UserError
 
 
 class StockMoveLine(models.Model):
@@ -54,10 +55,10 @@ class StockMoveLine(models.Model):
         related pickings.
         """
         location_src_to_process = self.location_id
-        if location_src_to_process:
-            assert (
-                len(location_src_to_process) == 1
-            ), "Move lines processed have to share the same source location."
+        if location_src_to_process and len(location_src_to_process) != 1:
+            raise UserError(
+                _("Move lines processed have to share the same source location.")
+            )
         pickings = self.picking_id
         move_lines_to_process_ids = []
         for picking in pickings:
@@ -65,7 +66,9 @@ class StockMoveLine(models.Model):
             if len(location_src) == 1:
                 continue
             # Get the related move lines among the picking and split them
-            move_lines_to_process_ids.extend((picking.move_line_ids & self).ids)
+            move_lines_to_process_ids.extend(
+                set(picking.move_line_ids.ids) & set(self.ids)
+            )
         # Put all move lines related to the source location in a separate picking
         move_lines_to_process = self.browse(move_lines_to_process_ids)
         new_move_ids = []
