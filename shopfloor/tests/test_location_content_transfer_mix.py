@@ -37,6 +37,8 @@ class LocationContentTransferMixCase(LocationContentTransferCommonCase):
         cls.wh.pack_type_id.sudo().default_location_dest_id = cls.env.ref(
             "stock.stock_location_output"
         )
+        # Enable checkout synchronization for operations targetting PACK transfers
+        cls.wh.pack_type_id.sudo().checkout_sync = True
 
     @classmethod
     def setUpClassBaseData(cls):
@@ -173,6 +175,10 @@ class LocationContentTransferMixCase(LocationContentTransferCommonCase):
                 assert move_line.state == "done"
                 assert move_line.qty_done == qty
         return response
+
+
+class LocationContentTransferZonePickingCase(LocationContentTransferMixCase):
+    """Tests where we mix location content transfer with other scenarios."""
 
     def test_with_zone_picking1(self):
         """Test the following scenario:
